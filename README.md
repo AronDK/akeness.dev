@@ -44,10 +44,3 @@ Each Markdown file may begin with simple frontmatter such as `title`, `date`,
 content automatically when that local directory is absent, so a fresh clone
 still builds.
 
-## Features
-
-- Yazi-inspired file navigator with in-place previews and explicit jump links.
-- Virtual terminal supporting `ls`, `cd`, `help`, Markdown-file opening, and
-  tab completion. It never executes host shell commands.
-- Responsive terminal-inspired visual design built with React, TypeScript,
-  Vite, and Tailwind CSS.
