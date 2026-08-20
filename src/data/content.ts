@@ -1,5 +1,11 @@
 export type EntryType = "project" | "blog" | "experience"
-export type BlogTag = string | { project: string; projectId: string }
+
+export interface ProjectTag {
+  project: string
+  projectId: string
+}
+
+export type BlogTag = string | ProjectTag
 
 export interface Entry {
   id: string
@@ -29,7 +35,7 @@ export interface VirtualFile {
 
 type ParsedDocument = Entry | VirtualFile
 
-const privateMarkdown = import.meta.glob("../../private/nerdblog/**/*.md", {
+const privateMarkdown = import.meta.glob("../private/nerdblog/**/*.md", {
   eager: true,
   import: "default",
   query: "?raw",
