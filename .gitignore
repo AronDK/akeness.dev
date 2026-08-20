@@ -1,0 +1,24 @@
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+.tmp-*
+
+# Local configuration and private source material.
+.env
+.env.*
+!.env.example
+/private/
+
+# Local editor and hosted-workspace state.
+/.figma/
+/.agents/
+/.codex/
+/.plugins/
+/.opencode-skills/
