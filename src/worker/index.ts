@@ -309,7 +309,7 @@ function embeddedAssetResponse(request: Request): Response | undefined {
 
   const assets = embeddedAssets()
   const pathname = new URL(request.url).pathname
-  const requestedPath = pathname === "/resume.pdf" ? "/resume" : pathname
+  const requestedPath = pathname === "/resume" ? "/resume.pdf" : pathname
   const directAsset =
     assets[requestedPath === "/" ? "/index.html" : requestedPath]
   const acceptsHtml = request.headers.get("Accept")?.includes("text/html")
@@ -340,6 +340,14 @@ function embeddedAssetResponse(request: Request): Response | undefined {
       },
     },
   )
+}
+
+function assetRequest(request: Request): Request {
+  const url = new URL(request.url)
+  if (url.pathname !== "/resume") return request
+
+  url.pathname = "/resume.pdf"
+  return new Request(url, request)
 }
 
 async function bodyHash(body: string): Promise<string> {
@@ -791,7 +799,7 @@ export default {
 
     const embeddedAsset = embeddedAssetResponse(request)
     if (embeddedAsset) return embeddedAsset
-    if (env.ASSETS) return env.ASSETS.fetch(request)
+    if (env.ASSETS) return env.ASSETS.fetch(assetRequest(request))
 
     return new Response("Not found.", {
       status: 404,
