@@ -6,6 +6,8 @@ build/
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo
+cdk.out/
+coverage/
 *-debug.log*
 logs/
 *.log
@@ -14,7 +16,8 @@ logs/
 # Local configuration and private source material.
 .env
 .env.*
-!.env.example
+!/src/.env.example
+.dev.vars
 /src/private/
 
 # Local editor and hosted-workspace state.

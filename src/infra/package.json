@@ -1,0 +1,27 @@
+{
+  "name": "akeness-contact-service",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "cdk": "cdk",
+    "synth": "pnpm cdk synth --quiet"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.0.0",
+    "aws-cdk-lib": "^2.1.0",
+    "constructs": "^10.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.1.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

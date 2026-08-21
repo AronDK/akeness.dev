@@ -11,6 +11,19 @@ interface ContactModalProps {
   onClose: () => void
 }
 
+interface ContactDetailProps {
+  label: string
+  value: string
+  href: string
+}
+
+interface FieldProps {
+  label: string
+  children: ReactNode
+}
+
+type SubmissionState = "idle" | "submitting" | "success" | "error"
+
 const XIcon = () => (
   <svg
     width="14"
@@ -31,13 +44,70 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
-  const [submitted, setSubmitted] = useState(false)
+  const [submissionState, setSubmissionState] =
+    useState<SubmissionState>("idle")
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
 
   if (!open) return null
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const closeModal = () => {
+    if (submissionState === "submitting") return
+    setSubmissionState("idle")
+    setSubmissionError(null)
+    onClose()
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSubmitted(true)
+
+    if (submissionState === "submitting") return
+
+    const apiUrl = import.meta.env.VITE_CONTACT_API_URL?.trim()
+
+    try {
+      if (!apiUrl || new URL(apiUrl).protocol !== "https:") {
+        throw new Error("Contact API URL is not configured")
+      }
+    } catch {
+      setSubmissionState("error")
+      setSubmissionError(
+        "Unable to send your message right now. Please try again.",
+      )
+      return
+    }
+
+    setSubmissionState("submitting")
+    setSubmissionError(null)
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, message }),
+      })
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("verification session expired")
+        }
+
+        throw new Error("Contact request failed")
+      }
+
+      setSubmissionState("success")
+    } catch (error) {
+      setSubmissionState("error")
+      setSubmissionError(
+        error instanceof Error &&
+          error.message === "verification session expired"
+          ? "Your verification session has expired. Reload the page and try again."
+          : "Unable to send your message right now. Please try again.",
+      )
+    }
   }
 
   const inputStyle: CSSProperties = {
@@ -74,10 +144,7 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
           href: siteConfig.linkedinUrl,
         }
       : undefined,
-  ].filter(
-    (detail): detail is { label: string; value: string; href: string } =>
-    Boolean(detail),
-  )
+  ].filter((detail): detail is ContactDetailProps => Boolean(detail))
 
   return (
     <>
@@ -85,7 +152,7 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
         type="button"
         aria-label="Close contact dialog"
         className="fade-in"
-        onClick={onClose}
+        onClick={closeModal}
         style={{
           position: "fixed",
           inset: 0,
@@ -140,13 +207,13 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
                 marginLeft: "8px",
               }}
             >
-              {siteConfig.email || "form endpoint not configured"}
+              {siteConfig.email || "secure message delivery"}
             </span>
           </div>
           <button
             type="button"
             aria-label="Close contact dialog"
-            onClick={onClose}
+            onClick={closeModal}
             style={{
               background: "none",
               border: "none",
@@ -163,9 +230,11 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
         </div>
 
         <div style={{ padding: "20px 20px 24px" }}>
-          {submitted ? (
+          {submissionState === "success" ? (
             <div
               className="fade-in"
+              role="status"
+              aria-live="polite"
               style={{ textAlign: "center", padding: "24px 0" }}
             >
               <div
@@ -184,14 +253,14 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
                   marginBottom: "4px",
                 }}
               >
-                This template does not send form data.
+                Your message has been sent.
               </div>
               <div style={{ color: "#8d949a", fontSize: "0.75rem" }}>
-                Connect a form service or API endpoint before enabling delivery.
+                Thanks for getting in touch.
               </div>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={closeModal}
                 style={{
                   marginTop: "20px",
                   padding: "7px 20px",
@@ -228,32 +297,45 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit}>
+              <form
+                onSubmit={handleSubmit}
+                aria-busy={submissionState === "submitting"}
+              >
                 <div
                   style={{ display: "flex", gap: "10px", marginBottom: "10px" }}
                 >
                   <Field label="name">
                     <input
+                      type="text"
+                      name="name"
+                      autoComplete="name"
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder="Your name"
                       style={inputStyle}
                       required
+                      maxLength={120}
+                      disabled={submissionState === "submitting"}
                     />
                   </Field>
                   <Field label="email">
                     <input
                       type="email"
+                      name="email"
+                      autoComplete="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@example.com"
                       style={inputStyle}
                       required
+                      maxLength={254}
+                      disabled={submissionState === "submitting"}
                     />
                   </Field>
                 </div>
                 <Field label="message">
                   <textarea
+                    name="message"
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="What's on your mind?"
@@ -264,10 +346,38 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
                       lineHeight: "1.6",
                     }}
                     required
+                    maxLength={5000}
+                    disabled={submissionState === "submitting"}
                   />
                 </Field>
+                {submissionState === "error" && (
+                  <p
+                    role="alert"
+                    style={{
+                      color: "#E89B9B",
+                      fontSize: "0.75rem",
+                      margin: "12px 0 0",
+                    }}
+                  >
+                    {submissionError}
+                  </p>
+                )}
+                {submissionState === "submitting" && (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      color: "#8d949a",
+                      fontSize: "0.75rem",
+                      margin: "12px 0 0",
+                    }}
+                  >
+                    Sending your message...
+                  </p>
+                )}
                 <button
                   type="submit"
+                  disabled={submissionState === "submitting"}
                   style={{
                     width: "100%",
                     marginTop: "14px",
@@ -279,11 +389,15 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
                     fontSize: "0.78rem",
                     fontFamily: "inherit",
                     fontWeight: 600,
-                    cursor: "pointer",
+                    cursor:
+                      submissionState === "submitting" ? "wait" : "pointer",
                     letterSpacing: "0.04em",
+                    opacity: submissionState === "submitting" ? 0.7 : 1,
                   }}
                 >
-                  submit (demo)
+                  {submissionState === "submitting"
+                    ? "sending..."
+                    : "send message"}
                 </button>
               </form>
             </>
@@ -294,7 +408,7 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children }: FieldProps) {
   return (
     <label style={{ display: "block", flex: 1 }}>
       <span
@@ -313,15 +427,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function ContactDetail({
-  label,
-  value,
-  href,
-}: {
-  label: string
-  value: string
-  href: string
-}) {
+function ContactDetail({ label, value, href }: ContactDetailProps) {
   return (
     <div>
       <div
