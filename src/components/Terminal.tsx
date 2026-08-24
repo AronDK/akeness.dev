@@ -15,6 +15,7 @@ import { siteConfig } from "../config/site"
 
 interface TerminalProps {
   onOpenFile: (id: string) => void
+  autoFocus?: boolean
 }
 
 type Directory = "root" | "blog" | "project" | "experience"
@@ -28,9 +29,11 @@ interface TranscriptItem {
 }
 
 interface CommandResult {
+  clearTranscript?: boolean
   output?: string
   nextDirectory?: Directory
   openFileId?: string
+  openResume?: boolean
 }
 
 interface CompletionCandidate {
@@ -45,28 +48,28 @@ interface Completion {
 }
 
 const rowHeight = 20
-const collapsedRows = 1
-const maximumVisibleRows = 5
 
 const directoryLabels: Record<Directory, string> = {
   root: "~",
-  blog: "~/blog",
-  project: "~/project",
-  experience: "~/experience",
+  blog: "~/Blog",
+  project: "~/Projects",
+  experience: "~/Experiences",
 }
 
 const directoryCandidates: CompletionCandidate[] = [
-  { value: "blog", label: "blog/" },
-  { value: "project", label: "project/" },
-  { value: "experience", label: "experience/" },
+  { value: "Blog", label: "Blog/" },
+  { value: "Projects", label: "Projects/" },
+  { value: "Experiences", label: "Experiences/" },
   { value: "..", label: "../" },
   { value: "~", label: "~/" },
 ]
 
 const commandCandidates: CompletionCandidate[] = [
   { value: "cd", label: "cd" },
+  { value: "clear", label: "clear" },
   { value: "help", label: "help" },
   { value: "ls", label: "ls" },
+  { value: "resume", label: "resume" },
 ]
 
 function filesIn(directory: Directory): TerminalFile[] {
@@ -76,7 +79,12 @@ function filesIn(directory: Directory): TerminalFile[] {
 
 function listDirectory(directory: Directory): string {
   if (directory === "root") {
-    return [rootReadme.filename, "blog/", "project/", "experience/"].join("  ")
+    return [
+      rootReadme.filename,
+      "Blog/",
+      "Projects/",
+      "Experiences/",
+    ].join("  ")
   }
 
   const files = filesIn(directory).map((entry) => entry.filename)
@@ -112,8 +120,24 @@ function runCommand(command: string, directory: Directory): CommandResult {
       ? { output: "help: this command does not accept arguments" }
       : {
           output:
-            "available commands:\n  ls                 list files and folders\n  cd <directory>     change directory\n  help               show this help\n  <filename>.md      open a Markdown file\n  Tab                autocomplete commands, folders, and files",
+            "available commands:\n  ls                 list files and folders\n  cd <directory>     change directory\n  clear              clear the terminal\n  help               show this help\n  resume             open resume\n  <filename>.md      open a Markdown file",
         }
+  }
+
+  if (executable === "clear") {
+    return args.length > 0
+      ? { output: "clear: this command does not accept arguments" }
+      : { clearTranscript: true }
+  }
+
+  if (executable === "resume") {
+    if (args.length > 0) {
+      return { output: "resume: this command does not accept arguments" }
+    }
+
+    return siteConfig.resumeUrl
+      ? { output: "opening resume...", openResume: true }
+      : { output: "resume: not configured" }
   }
 
   if (executable === "ls") {
@@ -219,7 +243,10 @@ function Prompt({ directory }: { directory: Directory }) {
   )
 }
 
-export default function Terminal({ onOpenFile }: TerminalProps) {
+export default function Terminal({
+  onOpenFile,
+  autoFocus = false,
+}: TerminalProps) {
   const [directory, setDirectory] = useState<Directory>("root")
   const [input, setInput] = useState("")
   const [transcript, setTranscript] = useState<TranscriptItem[]>([])
@@ -228,26 +255,19 @@ export default function Terminal({ onOpenFile }: TerminalProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const nextTranscriptId = useRef(0)
 
-  const transcriptRowCount = transcript.reduce((total, item) => {
-    const commandRows = item.command ? 1 : 0
-    const outputRows = item.output ? item.output.split("\n").length : 0
-    return total + commandRows + outputRows
-  }, 0)
-  const visibleRows = Math.min(
-    maximumVisibleRows,
-    Math.max(
-      collapsedRows,
-      collapsedRows + transcriptRowCount,
-      input.trim() ? collapsedRows + 1 : collapsedRows,
-    ),
-  )
-
   useEffect(() => {
     const transcriptElement = transcriptRef.current
     if (transcriptElement) {
       transcriptElement.scrollTop = transcriptElement.scrollHeight
     }
-  }, [transcript, visibleRows])
+  }, [transcript])
+
+  useEffect(() => {
+    if (!autoFocus) return
+
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [autoFocus])
 
   const appendTranscript = (item: Omit<TranscriptItem, "id">) => {
     nextTranscriptId.current += 1
@@ -264,7 +284,11 @@ export default function Terminal({ onOpenFile }: TerminalProps) {
     if (command === "") return
 
     const result = runCommand(command, directory)
-    appendTranscript({ command, directory, output: result.output })
+    if (result.clearTranscript) {
+      setTranscript([])
+    } else {
+      appendTranscript({ command, directory, output: result.output })
+    }
     setInput("")
     setLastTabKey(null)
     if (result.nextDirectory) {
@@ -273,6 +297,10 @@ export default function Terminal({ onOpenFile }: TerminalProps) {
 
     if (result.openFileId) {
       onOpenFile(result.openFileId)
+    }
+
+    if (result.openResume && siteConfig.resumeUrl) {
+      window.open(siteConfig.resumeUrl, "_blank", "noopener,noreferrer")
     }
   }
 
@@ -323,16 +351,14 @@ export default function Terminal({ onOpenFile }: TerminalProps) {
         flexDirection: "column",
         fontFamily: "inherit",
         fontSize: "0.7rem",
-        height: rowHeight * visibleRows,
+        height: "100%",
         lineHeight: `${rowHeight}px`,
+        minHeight: 0,
         overflow: "hidden",
-        transition: "height 180ms ease",
       }}
     >
       <div
         ref={transcriptRef}
-        aria-live="polite"
-        aria-relevant="additions text"
         style={{
           flex: "1 1 auto",
           minHeight: 0,
@@ -343,75 +369,77 @@ export default function Terminal({ onOpenFile }: TerminalProps) {
           scrollbarWidth: "thin",
         }}
       >
-        {transcript.map((item) => (
-          <div key={item.id}>
-            {item.command && (
-              <div style={{ display: "flex", gap: "6px", minWidth: 0 }}>
-                <Prompt directory={item.directory ?? directory} />
-                <span
+        <div aria-live="polite" aria-relevant="additions text">
+          {transcript.map((item) => (
+            <div key={item.id}>
+              {item.command && (
+                <div style={{ display: "flex", gap: "6px", minWidth: 0 }}>
+                  <Prompt directory={item.directory ?? directory} />
+                  <span
+                    style={{
+                      color: "#DFE3E7",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {item.command}
+                  </span>
+                </div>
+              )}
+              {item.output && (
+                <div
                   style={{
-                    color: "#DFE3E7",
-                    minWidth: 0,
+                    color: item.command ? "#8d949a" : "#C0C7CD",
                     overflowWrap: "anywhere",
+                    whiteSpace: "pre-wrap",
                   }}
                 >
-                  {item.command}
-                </span>
-              </div>
-            )}
-            {item.output && (
-              <div
-                style={{
-                  color: item.command ? "#8d949a" : "#C0C7CD",
-                  overflowWrap: "anywhere",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {item.output}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                  {item.output}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          alignItems: "center",
-          display: "flex",
-          flex: `0 0 ${rowHeight}px`,
-          gap: "6px",
-          minWidth: 0,
-        }}
-      >
-        <Prompt directory={directory} />
-        <input
-          ref={inputRef}
-          aria-label={`Terminal command. Current directory ${directoryLabels[directory]}. Type help for available commands.`}
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect="off"
-          onChange={(event) => {
-            setInput(event.target.value)
-            setLastTabKey(null)
-          }}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
-          type="text"
-          value={input}
+        <form
+          onSubmit={handleSubmit}
           style={{
-            background: "transparent",
-            border: 0,
-            color: "#DFE3E7",
-            flex: "1 1 auto",
-            font: "inherit",
-            lineHeight: "inherit",
+            alignItems: "center",
+            display: "flex",
+            gap: "6px",
+            minHeight: rowHeight,
             minWidth: 0,
-            outline: "none",
-            padding: 0,
           }}
-        />
-      </form>
+        >
+          <Prompt directory={directory} />
+          <input
+            ref={inputRef}
+            aria-label={`Terminal command. Current directory ${directoryLabels[directory]}. Type help for available commands.`}
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect="off"
+            onChange={(event) => {
+              setInput(event.target.value)
+              setLastTabKey(null)
+            }}
+            onKeyDown={handleKeyDown}
+            spellCheck={false}
+            type="text"
+            value={input}
+            style={{
+              background: "transparent",
+              border: 0,
+              color: "#DFE3E7",
+              flex: "1 1 auto",
+              font: "inherit",
+              lineHeight: "inherit",
+              minWidth: 0,
+              outline: "none",
+              padding: 0,
+            }}
+          />
+        </form>
+      </div>
     </section>
   )
 }

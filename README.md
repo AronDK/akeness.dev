@@ -145,20 +145,39 @@ then rebuild and deploy the frontend through its existing hosting workflow.
 
 ## Content and local files
 
-The tracked [`src/data/content.ts`](src/data/content.ts) is generic. Put private
-content, images, and local notes under `src/private/`; that directory is
-git-ignored. The app loads local Markdown from this virtual filesystem at build
-time:
+The tracked [`src/data/content.ts`](src/data/content.ts) loads private content,
+images, and local notes from `src/private/`; that directory is git-ignored. The
+app loads local Markdown from this virtual filesystem at build time:
 
 ```text
 src/private/nerdblog/
 ├── readme.md
-├── blog/
-├── project/
-└── experience/
+├── Blog/
+├── Projects/
+└── Experiences/
 ```
 
 Each Markdown file may begin with simple frontmatter such as `title`, `date`,
-`summary`, `role`, `stack`, `tag`, and `readtime`. The app uses generic sample
-content automatically when that local directory is absent, so a fresh clone
-still builds.
+`summary`, `role`, `stack`, `tag`, and `readtime`. A root `readme.md` and any
+entries you want to publish must be present locally; the site intentionally has
+no generic content fallback.
+
+Markdown supports standard and GitHub-flavoured formatting, fenced code blocks
+with syntax highlighting, and images. Keep post images under
+`src/private/nerdblog/` and reference them relative to the Markdown file so
+Vite includes them in the deployed build:
+
+```text
+src/private/nerdblog/Blog/
+├── cloudflare-notes.md
+└── images/
+    └── cloudflare-notes-flow.webp
+```
+
+````md
+![Request flow](./images/cloudflare-notes-flow.webp)
+
+```ts
+export const origin = "https://akeness.dev"
+```
+````

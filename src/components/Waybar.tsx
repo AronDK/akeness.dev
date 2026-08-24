@@ -1,11 +1,19 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { siteConfig } from "../config/site"
-import Terminal from "./Terminal"
 
 interface WaybarProps {
   onContactOpen: () => void
-  onOpenFile: (id: string) => void
 }
+
+const profileImages = import.meta.glob<string>(
+  "../private/assets/profile.{avif,jpeg,jpg,png,webp}",
+  {
+    eager: true,
+    import: "default",
+    query: "?url",
+  },
+)
+const profileImage = Object.values(profileImages)[0]
 
 const GitHubIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -70,7 +78,8 @@ const MapPinIcon = () => (
   </svg>
 )
 
-export default function Waybar({ onContactOpen, onOpenFile }: WaybarProps) {
+export default function Waybar({ onContactOpen }: WaybarProps) {
+  const [profileImageFailed, setProfileImageFailed] = useState(false)
   const avatarLetters = siteConfig.owner
     .split(/\s+/)
     .filter(Boolean)
@@ -98,9 +107,19 @@ export default function Waybar({ onContactOpen, onOpenFile }: WaybarProps) {
                 color: "#8FCEF3",
                 fontSize: "1.1rem",
                 fontWeight: 700,
+                overflow: "hidden",
               }}
             >
-              {avatarLetters || "~"}
+              {profileImage && !profileImageFailed ? (
+                <img
+                  src={profileImage}
+                  alt={`${siteConfig.owner} profile`}
+                  onError={() => setProfileImageFailed(true)}
+                  style={{ height: "100%", objectFit: "cover", width: "100%" }}
+                />
+              ) : (
+                avatarLetters || "~"
+              )}
             </div>
 
             <div className="min-w-0">
@@ -233,16 +252,6 @@ export default function Waybar({ onContactOpen, onOpenFile }: WaybarProps) {
               </button>
             )}
           </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: "8px",
-            paddingTop: "8px",
-            borderTop: "1px solid rgba(65,72,77,0.4)",
-          }}
-        >
-          <Terminal onOpenFile={onOpenFile} />
         </div>
       </div>
     </header>

@@ -13,6 +13,7 @@ import {
   type Entry,
   type VirtualFile,
 } from "../data/content"
+import { sidePanelSize } from "./sidePanel"
 
 interface YaziNavigatorProps {
   open: boolean
@@ -95,9 +96,9 @@ const CloseIcon = () => (
 
 const rootDirs: RootDirEntry[] = [
   { id: "all", label: "All", count: entries.length + 1 },
-  { id: "project", label: "Project", count: projects.length },
+  { id: "project", label: "Projects", count: projects.length },
   { id: "blog", label: "Blog", count: blogs.length },
-  { id: "experience", label: "Experience", count: experiences.length },
+  { id: "experience", label: "Experiences", count: experiences.length },
 ]
 
 function getFiles(dir: RootDir): NavigatorFile[] {
@@ -226,7 +227,7 @@ export default function YaziNavigator({
         style={{
           position: "fixed",
           left: 0,
-          top: "50%",
+          top: "calc(50% - 42px)",
           transform: "translateY(-50%)",
           zIndex: 50,
           display: "flex",
@@ -281,12 +282,11 @@ export default function YaziNavigator({
               left: 0,
               top: "50%",
               zIndex: 70,
-              width: "min(820px, calc(100vw - 12px))",
-              height: "min(560px, calc(100vh - 24px))",
+              ...sidePanelSize,
               display: "flex",
               flexDirection: "column",
               transform: "translateY(-50%)",
-              transformOrigin: "left center",
+              transformOrigin: "left calc(50% - 42px)",
               overflow: "hidden",
               background: "rgba(15, 20, 23, 0.96)",
               backdropFilter: "blur(32px)",

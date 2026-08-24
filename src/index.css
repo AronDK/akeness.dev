@@ -102,20 +102,108 @@ body {
   background: rgba(15, 20, 23, 0.9);
   border: 1px solid #41484D;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0;
   overflow-x: auto;
   margin: 0.75rem 0;
 }
 .prose-terminal pre code {
+  display: block;
   background: transparent;
-  padding: 0;
+  padding: 1rem;
   color: #C0C7CD;
   font-size: 0.82rem;
+}
+.prose-terminal .code-language {
+  display: block;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgba(65, 72, 77, 0.72);
+  color: #8d949a;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: normal;
+}
+.prose-terminal .hljs-comment,
+.prose-terminal .hljs-quote {
+  color: #6f818b;
+  font-style: italic;
+}
+.prose-terminal .hljs-keyword,
+.prose-terminal .hljs-selector-tag,
+.prose-terminal .hljs-literal,
+.prose-terminal .hljs-type {
+  color: #c792ea;
+}
+.prose-terminal .hljs-string,
+.prose-terminal .hljs-attr,
+.prose-terminal .hljs-template-variable {
+  color: #c3e88d;
+}
+.prose-terminal .hljs-number,
+.prose-terminal .hljs-symbol,
+.prose-terminal .hljs-bullet {
+  color: #f78c6c;
+}
+.prose-terminal .hljs-title,
+.prose-terminal .hljs-title.function_,
+.prose-terminal .hljs-function {
+  color: #82aaff;
+}
+.prose-terminal .hljs-params,
+.prose-terminal .hljs-variable,
+.prose-terminal .hljs-property {
+  color: #eeffff;
+}
+.prose-terminal .hljs-built_in,
+.prose-terminal .hljs-meta,
+.prose-terminal .hljs-subst {
+  color: #89ddff;
 }
 .prose-terminal a {
   color: #8FCEF3;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.prose-terminal img {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  margin: 1rem 0;
+  border: 1px solid rgba(65, 72, 77, 0.8);
+  border-radius: 8px;
+  background: rgba(15, 20, 23, 0.75);
+}
+.prose-terminal blockquote {
+  margin: 0.75rem 0;
+  padding-left: 12px;
+  border-left: 3px solid #41484D;
+  color: #8d949a;
+  font-size: 0.83rem;
+  font-style: italic;
+}
+.prose-terminal blockquote p {
+  color: inherit;
+}
+.prose-terminal table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  color: #C0C7CD;
+  font-size: 0.82rem;
+}
+.prose-terminal th,
+.prose-terminal td {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(65, 72, 77, 0.8);
+  text-align: left;
+}
+.prose-terminal th {
+  color: #DFE3E7;
+  background: rgba(143, 206, 243, 0.07);
 }
 .prose-terminal hr {
   border: none;
@@ -140,11 +228,13 @@ body {
   }
 }
 
-.yazi-tab {
+.yazi-tab,
+.terminal-tab {
   animation: yaziGlow 2.4s ease-in-out infinite;
 }
 
-.yazi-tab:hover {
+.yazi-tab:hover,
+.terminal-tab:hover {
   animation: none;
   box-shadow:
     2px 0 0 0 rgba(143, 206, 243, 1),
@@ -219,6 +309,38 @@ body {
   pointer-events: none;
 }
 
+@keyframes terminalIslandExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.055) scaleY(0.1);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes terminalIslandCollapse {
+  from {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.055) scaleY(0.1);
+  }
+}
+
+.terminal-island {
+  animation: terminalIslandExpand 0.26s cubic-bezier(0.2, 0.85, 0.24, 1) both;
+  will-change: opacity, transform;
+}
+
+.terminal-island-closing {
+  animation: terminalIslandCollapse 0.24s cubic-bezier(0.55, 0, 0.8, 0.2) both;
+  pointer-events: none;
+}
+
 .yazi-columns-scroll {
   scrollbar-color: #41484D transparent;
   scrollbar-width: thin;
@@ -226,6 +348,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .yazi-tab,
+  .terminal-island,
+  .terminal-island-closing,
   .yazi-island,
   .yazi-island-closing,
   .modal-fade-in {

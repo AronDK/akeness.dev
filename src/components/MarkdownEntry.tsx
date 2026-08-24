@@ -1,5 +1,14 @@
-import type React from "react"
-import { type Entry } from "../data/content"
+import {
+  Children,
+  isValidElement,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react"
+import ReactMarkdown from "react-markdown"
+import rehypeHighlight from "rehype-highlight"
+import remarkGfm from "remark-gfm"
+import { resolveMarkdownImage, type Entry } from "../data/content"
 import { siteConfig } from "../config/site"
 
 interface MarkdownEntryProps {
@@ -12,7 +21,7 @@ function sectionLabel(entry: Entry): string {
   return "Projects"
 }
 
-function typeBadgeStyle(type: string): React.CSSProperties {
+function typeBadgeStyle(type: string): CSSProperties {
   const isBlog = type === "blog"
   return {
     padding: "2px 9px",
@@ -28,8 +37,6 @@ function typeBadgeStyle(type: string): React.CSSProperties {
 }
 
 export default function MarkdownEntry({ entry }: MarkdownEntryProps) {
-  const lines = entry.body.split("\n")
-
   return (
     <section
       id={entry.id}
@@ -91,7 +98,7 @@ export default function MarkdownEntry({ entry }: MarkdownEntryProps) {
 
         {/* Rendered body */}
         <div className="prose-terminal">
-          <MarkdownRenderer lines={lines} />
+          <MarkdownRenderer entry={entry} />
         </div>
       </div>
     </section>
@@ -129,162 +136,90 @@ function EntryTag({ tag }: { tag: NonNullable<Entry["tag"]> }) {
   )
 }
 
-function MarkdownRenderer({ lines }: { lines: string[] }) {
-  const elements: React.ReactNode[] = []
-  let i = 0
+type MarkdownAnchorProps = ComponentPropsWithoutRef<"a"> & { node?: unknown }
+type MarkdownImageProps = ComponentPropsWithoutRef<"img"> & { node?: unknown }
+type MarkdownPreProps = ComponentPropsWithoutRef<"pre"> & { node?: unknown }
 
-  while (i < lines.length) {
-    const line = lines[i]
-
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim()
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(lines[i])
-        i++
-      }
-      elements.push(
-        <pre key={i}>
-          {lang && (
-            <div
-              style={{
-                color: "#41484D",
-                fontSize: "0.6rem",
-                marginBottom: "6px",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {lang}
-            </div>
-          )}
-          <code>{codeLines.join("\n")}</code>
-        </pre>,
-      )
-      i++
-      continue
-    }
-
-    if (line.startsWith("### ")) {
-      elements.push(<h3 key={i}>{renderInline(line.slice(4))}</h3>)
-    } else if (line.startsWith("## ")) {
-      elements.push(<h2 key={i}>{renderInline(line.slice(3))}</h2>)
-    } else if (line.startsWith("# ")) {
-      elements.push(<h1 key={i}>{renderInline(line.slice(2))}</h1>)
-    } else if (line.startsWith("> ")) {
-      elements.push(
-        <blockquote
-          key={i}
-          style={{
-            borderLeft: "3px solid #41484D",
-            paddingLeft: "12px",
-            color: "#8d949a",
-            fontStyle: "italic",
-            margin: "8px 0",
-            fontSize: "0.83rem",
-          }}
-        >
-          {renderInline(line.slice(2))}
-        </blockquote>,
-      )
-    } else if (line.startsWith("---")) {
-      elements.push(<hr key={i} />)
-    } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      const items: string[] = []
-      while (
-        i < lines.length &&
-        (lines[i].startsWith("- ") || lines[i].startsWith("* "))
-      ) {
-        items.push(lines[i].slice(2))
-        i++
-      }
-      elements.push(
-        <ul key={`ul-${i}`}>
-          {items.map((item, j) => (
-            <li key={j}>{renderInline(item)}</li>
-          ))}
-        </ul>,
-      )
-      continue
-    } else if (line.trim() !== "") {
-      elements.push(<p key={i}>{renderInline(line)}</p>)
-    }
-
-    i++
-  }
-
-  return <>{elements}</>
+export function MarkdownRenderer({
+  entry,
+}: {
+  entry: Pick<Entry, "body" | "sourcePath">
+}) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[[rehypeHighlight, { detect: true }]]}
+      components={{
+        a: MarkdownLink,
+        img: (props) => <MarkdownImage entry={entry} {...props} />,
+        pre: MarkdownPre,
+      }}
+    >
+      {entry.body}
+    </ReactMarkdown>
+  )
 }
 
-function renderInline(text: string): React.ReactNode {
-  const parts: React.ReactNode[] = []
-  let remaining = text
-  let key = 0
+function MarkdownLink({
+  node: _node,
+  href,
+  children,
+  ...props
+}: MarkdownAnchorProps) {
+  const isExternal = /^https?:\/\//i.test(href ?? "")
 
-  while (remaining.length > 0) {
-    const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
-    const codeMatch = remaining.match(/`([^`]+)`/)
-    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/)
+  return (
+    <a
+      {...props}
+      href={href}
+      {...(isExternal
+        ? { target: "_blank", rel: "noopener noreferrer" }
+        : undefined)}
+    >
+      {children}
+    </a>
+  )
+}
 
-    type Candidate = {
-      type: string
-      match: RegExpMatchArray
-      index: number
-    }
-    const candidates: Candidate[] = []
-    if (boldMatch)
-      candidates.push({
-        type: "bold",
-        match: boldMatch,
-        index: boldMatch.index!,
-      })
-    if (codeMatch)
-      candidates.push({
-        type: "code",
-        match: codeMatch,
-        index: codeMatch.index!,
-      })
-    if (linkMatch)
-      candidates.push({
-        type: "link",
-        match: linkMatch,
-        index: linkMatch.index!,
-      })
+function MarkdownImage({
+  entry,
+  node: _node,
+  src,
+  alt,
+  ...props
+}: MarkdownImageProps & { entry: Pick<Entry, "sourcePath"> }) {
+  const imageSource =
+    typeof src === "string" ? resolveMarkdownImage(entry, src) : undefined
 
-    if (candidates.length === 0) {
-      parts.push(<span key={key++}>{remaining}</span>)
-      break
-    }
+  if (!imageSource) return null
 
-    const first = candidates.reduce((a, b) => (a.index <= b.index ? a : b))
+  return (
+    <img
+      {...props}
+      src={imageSource}
+      alt={alt ?? ""}
+      loading="lazy"
+      decoding="async"
+    />
+  )
+}
 
-    if (first.index > 0) {
-      parts.push(<span key={key++}>{remaining.slice(0, first.index)}</span>)
-    }
+function MarkdownPre({ children, node: _node, ...props }: MarkdownPreProps) {
+  const language = languageFromCode(children)
 
-    if (first.type === "bold") {
-      parts.push(
-        <strong key={key++} style={{ color: "#DFE3E7", fontWeight: 700 }}>
-          {first.match[1]}
-        </strong>,
-      )
-    } else if (first.type === "code") {
-      parts.push(<code key={key++}>{first.match[1]}</code>)
-    } else if (first.type === "link") {
-      parts.push(
-        <a
-          key={key++}
-          href={first.match[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {first.match[1]}
-        </a>,
-      )
-    }
+  return (
+    <pre {...props}>
+      {language && <span className="code-language">{language}</span>}
+      {children}
+    </pre>
+  )
+}
 
-    remaining = remaining.slice(first.index + first.match[0].length)
-  }
+function languageFromCode(children: ReactNode) {
+  const code = Children.toArray(children).find(isValidElement)
+  const className = isValidElement<{ className?: string }>(code)
+    ? code.props.className
+    : undefined
 
-  return parts
+  return className?.match(/(?:^|\s)language-([^\s]+)/)?.[1]
 }

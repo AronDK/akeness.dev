@@ -19,6 +19,7 @@ export interface Entry {
   role?: string
   summary: string
   body: string
+  sourcePath?: string
 }
 
 export interface VirtualFile {
@@ -31,6 +32,8 @@ export interface VirtualFile {
   tag?: BlogTag
   stack?: string[]
   summary: string
+  body: string
+  sourcePath: string
 }
 
 type ParsedDocument = Entry | VirtualFile
@@ -41,113 +44,14 @@ const privateMarkdown = import.meta.glob("../private/nerdblog/**/*.md", {
   query: "?raw",
 }) as Record<string, string>
 
-const fallbackReadme: VirtualFile = {
-  id: "readme",
-  type: "root",
-  filename: "readme.md",
-  title: "Portfolio template",
-  summary:
-    "This is the root README for the site. Select “jump to section” to return to the top of the document.",
-}
-
-const fallbackEntries: Entry[] = [
+const privateMarkdownImages = import.meta.glob(
+  "../private/nerdblog/**/*.{avif,gif,jpeg,jpg,png,svg,webp}",
   {
-    id: "interface-library",
-    type: "project",
-    filename: "interface-library.md",
-    title: "Interface library",
-    date: "2026-01",
-    stack: ["React", "TypeScript", "Design tokens"],
-    role: "Sample project",
-    summary:
-      "A fictional example of a reusable component library with accessible defaults and a documented visual language.",
-    body: `# Interface library
-
-**Role:** Sample project
-**Stack:** React · TypeScript · Design tokens
-
-## Overview
-
-This generic entry demonstrates the Markdown format used by the template. Replace it with a real project before publishing your own site.
-
-## Notes
-
-- Components share a small, intentional set of tokens.
-- Keyboard interaction is considered alongside visual states.
-- Documentation is kept close to the implementation.`,
+    eager: true,
+    import: "default",
+    query: "?url",
   },
-  {
-    id: "research-dashboard",
-    type: "project",
-    filename: "research-dashboard.md",
-    title: "Research dashboard",
-    date: "2025-11",
-    stack: ["TypeScript", "Data visualisation", "Testing"],
-    role: "Sample project",
-    summary:
-      "A fictional dashboard example that turns a recurring research workflow into a clear, reviewable interface.",
-    body: `# Research dashboard
-
-**Role:** Sample project
-**Stack:** TypeScript · Data visualisation · Testing
-
-## Overview
-
-This placeholder describes an interface for comparing source material, tracking open questions, and sharing a concise status view.
-
-## Design principle
-
-Make the next action obvious, keep raw details available, and avoid hiding uncertainty behind a polished chart.`,
-  },
-  {
-    id: "designing-navigation",
-    type: "blog",
-    filename: "designing-navigation.md",
-    title: "Designing navigation with a useful mental model",
-    date: "2026-02-10",
-    readTime: "4 min",
-    tag: "design",
-    summary:
-      "A sample article about using a familiar model to make a content-dense interface easier to explore.",
-    body: `# Designing navigation with a useful mental model
-
-**Published:** 2026-02-10 · **~4 min read**
-**Tags:** \`design\` \`navigation\`
-
----
-
-Good navigation gives people enough context to decide where to go next. Familiar shapes, clear labels, and reversible actions are more useful than novelty for its own sake.
-
-## A small rule
-
-Show the current location, make neighbouring locations visible, and keep a clear way back.`,
-  },
-  {
-    id: "working-in-public",
-    type: "blog",
-    filename: "working-in-public.md",
-    title: "A small note on publishing work",
-    date: "2025-12-02",
-    readTime: "3 min",
-    tag: "practice",
-    summary:
-      "A sample note on keeping public examples useful without exposing private context or credentials.",
-    body: `# A small note on publishing work
-
-**Published:** 2025-12-02 · **~3 min read**
-**Tags:** \`practice\` \`writing\`
-
----
-
-Public examples work best when they are easy to understand, safe to share, and clear about what has been simplified.
-
-## Before publishing
-
-- Remove credentials and personal contact details.
-- Replace private content with representative examples.
-- Test a fresh clone before sharing the repository.`,
-  },
-]
+) as Record<string, string>
 
 function parseFrontmatter(raw: string) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
@@ -188,6 +92,62 @@ function summaryFromBody(body: string) {
   )
 }
 
+function normaliseRelativePath(path: string) {
+  const segments: string[] = []
+
+  for (const segment of path.split("/")) {
+    if (!segment || segment === ".") continue
+
+    if (segment === "..") {
+      const previous = segments.at(-1)
+      if (previous && previous !== "..") {
+        segments.pop()
+      } else {
+        segments.push(segment)
+      }
+      continue
+    }
+
+    segments.push(segment)
+  }
+
+  return segments.join("/")
+}
+
+/**
+ * Resolves an image path written relative to a private Markdown document to
+ * Vite's emitted asset URL. Absolute and external URLs pass through unchanged.
+ */
+export function resolveMarkdownImage(
+  entry: Pick<Entry, "sourcePath">,
+  source: string,
+) {
+  if (
+    !entry.sourcePath ||
+    !source ||
+    source.startsWith("/") ||
+    source.startsWith("#") ||
+    source.startsWith("//") ||
+    /^[a-z][a-z\d+.-]*:/i.test(source)
+  ) {
+    return source
+  }
+
+  const match = source.match(/^([^?#]*)(.*)$/)
+  const imagePath = match?.[1] ?? source
+  const suffix = match?.[2] ?? ""
+  const documentDirectory = entry.sourcePath.slice(
+    0,
+    entry.sourcePath.lastIndexOf("/") + 1,
+  )
+  const resolvedPath = normaliseRelativePath(`${documentDirectory}${imagePath}`)
+
+  if (!resolvedPath.startsWith("../private/nerdblog/")) return source
+
+  const emittedUrl = privateMarkdownImages[resolvedPath]
+  return emittedUrl ? `${emittedUrl}${suffix}` : source
+}
+
 function parsePrivateDocument(
   path: string,
   raw: string,
@@ -218,21 +178,23 @@ function parsePrivateDocument(
         ?.split("|")
         .map((item) => item.trim())
         .filter(Boolean),
+      body,
+      sourcePath: path,
     }
   }
 
   const type =
-    parts[0] === "project"
+    parts[0] === "Projects"
       ? "project"
-      : parts[0] === "blog"
+      : parts[0] === "Blog"
         ? "blog"
-        : parts[0] === "experience"
+        : parts[0] === "Experiences"
           ? "experience"
           : undefined
   if (!type) return undefined
 
   return {
-    id,
+    id: `${type}-${id}`,
     type,
     filename,
     title,
@@ -246,6 +208,7 @@ function parsePrivateDocument(
     role: metadata.role,
     summary,
     body,
+    sourcePath: path,
   }
 }
 
@@ -254,17 +217,21 @@ const privateDocuments = Object.entries(privateMarkdown)
   .map(([path, raw]) => parsePrivateDocument(path, raw))
   .filter((document): document is ParsedDocument => Boolean(document))
 
-export const rootReadme =
-  privateDocuments.find(
-    (document): document is VirtualFile => document.type === "root",
-  ) ?? fallbackReadme
-
-const privateEntries = privateDocuments.filter(
-  (document): document is Entry => document.type !== "root",
+const rootReadmeDocument = privateDocuments.find(
+  (document): document is VirtualFile => document.type === "root",
 )
 
-export const entries =
-  privateEntries.length > 0 ? privateEntries : fallbackEntries
+if (!rootReadmeDocument) {
+  throw new Error(
+    "Missing src/private/nerdblog/readme.md. Nerdblog content is required.",
+  )
+}
+
+export const rootReadme = rootReadmeDocument
+
+export const entries = privateDocuments.filter(
+  (document): document is Entry => document.type !== "root",
+)
 export const projects = entries.filter((entry) => entry.type === "project")
 export const blogs = entries.filter((entry) => entry.type === "blog")
 export const experiences = entries.filter(

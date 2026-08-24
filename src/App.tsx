@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import ContactModal from "./components/ContactModal"
-import MarkdownEntry from "./components/MarkdownEntry"
+import MarkdownEntry, { MarkdownRenderer } from "./components/MarkdownEntry"
+import TerminalNavigator from "./components/TerminalNavigator"
 import Waybar from "./components/Waybar"
 import YaziNavigator from "./components/YaziNavigator"
 import { siteConfig } from "./config/site"
@@ -31,7 +32,9 @@ const heroTags = [
 
 export default function App() {
   const [contactOpen, setContactOpen] = useState(false)
-  const [yaziOpen, setYaziOpen] = useState(false)
+  const [activeSidePanel, setActiveSidePanel] = useState<
+    "terminal" | "yazi" | null
+  >(null)
   const mainRef = useRef<HTMLDivElement>(null)
   const orderedEntries = [...blogs, ...projects, ...experiences]
 
@@ -74,7 +77,6 @@ export default function App() {
       >
         <Waybar
           onContactOpen={() => setContactOpen(true)}
-          onOpenFile={scrollTo}
         />
 
         <main
@@ -127,13 +129,13 @@ export default function App() {
               }}
             >
               <div className="prose-terminal">
-                <h1 style={{ marginTop: 0 }}>{siteConfig.name}</h1>
-                <p style={{ maxWidth: "64ch" }}>{siteConfig.bio}</p>
+                <h1 style={{ marginTop: 0 }}>{rootReadme.title}</h1>
+                <MarkdownRenderer entry={rootReadme} />
                 <p style={{ maxWidth: "64ch", color: "#C0C7CD" }}>
                   Browse entries through the{" "}
                   <button
                     type="button"
-                    onClick={() => setYaziOpen(true)}
+                    onClick={() => setActiveSidePanel("yazi")}
                     style={{
                       background: "none",
                       border: "none",
@@ -152,7 +154,7 @@ export default function App() {
                   on the left, or press{" "}
                   <button
                     type="button"
-                    onClick={() => setYaziOpen(true)}
+                    onClick={() => setActiveSidePanel("yazi")}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -170,7 +172,30 @@ export default function App() {
                   >
                     <ChevronRightIcon /> yazi
                   </button>{" "}
-                  to explore by category and preview a file before jumping.
+                  to explore by category and preview a file before jumping. If
+                  a CLI tool is preferred use the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setActiveSidePanel("terminal")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px",
+                      background: "rgba(143,206,243,0.08)",
+                      border: "1px solid rgba(143,206,243,0.25)",
+                      borderRadius: "5px",
+                      padding: "1px 7px 1px 5px",
+                      fontFamily: "inherit",
+                      fontSize: "0.75rem",
+                      color: "#8FCEF3",
+                      cursor: "pointer",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <ChevronRightIcon /> terminal
+                  </button>{" "}
+                  panel below it; type{" "}
+                  <code>help</code> to see a list of commands.
                 </p>
                 <div
                   style={{
@@ -259,8 +284,15 @@ export default function App() {
 
       <YaziNavigator
         onSelect={scrollTo}
-        open={yaziOpen}
-        onOpenChange={setYaziOpen}
+        open={activeSidePanel === "yazi"}
+        onOpenChange={(open) => setActiveSidePanel(open ? "yazi" : null)}
+      />
+      <TerminalNavigator
+        onOpenFile={scrollTo}
+        open={activeSidePanel === "terminal"}
+        onOpenChange={(open) =>
+          setActiveSidePanel(open ? "terminal" : null)
+        }
       />
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>
