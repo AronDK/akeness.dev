@@ -3,6 +3,7 @@
   "name": "dawn-shadow-0f24",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-08-21",
+  "preview_urls": false,
   "keep_vars": true,
   "assets": {
     "directory": "./dist",
