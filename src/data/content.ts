@@ -229,11 +229,49 @@ if (!rootReadmeDocument) {
 
 export const rootReadme = rootReadmeDocument
 
-export const entries = privateDocuments.filter(
+const contentEntries = privateDocuments.filter(
   (document): document is Entry => document.type !== "root",
 )
-export const projects = entries.filter((entry) => entry.type === "project")
-export const blogs = entries.filter((entry) => entry.type === "blog")
-export const experiences = entries.filter(
-  (entry) => entry.type === "experience",
+
+const monthIndex: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+}
+
+function experienceDateRange(date: string) {
+  const dates = [...date.matchAll(/\b([A-Za-z]{3})[A-Za-z]*\s+(\d{4})\b/g)].map(
+    (match) => Date.UTC(Number(match[2]), monthIndex[match[1].toLowerCase()]),
+  )
+
+  return {
+    start: dates[0] ?? Number.NEGATIVE_INFINITY,
+    end: dates[1] ??
+      (/present/i.test(date) ? Number.POSITIVE_INFINITY : dates[0]) ??
+      Number.NEGATIVE_INFINITY,
+  }
+}
+
+function compareExperiencesNewestFirst(left: Entry, right: Entry) {
+  const leftRange = experienceDateRange(left.date)
+  const rightRange = experienceDateRange(right.date)
+  return rightRange.start - leftRange.start || rightRange.end - leftRange.end
+}
+
+export const projects = contentEntries.filter(
+  (entry) => entry.type === "project",
 )
+export const blogs = contentEntries.filter((entry) => entry.type === "blog")
+export const experiences = contentEntries
+  .filter((entry) => entry.type === "experience")
+  .sort(compareExperiencesNewestFirst)
+export const entries = [...blogs, ...projects, ...experiences]

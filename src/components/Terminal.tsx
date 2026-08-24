@@ -107,6 +107,7 @@ function resolveDirectory(target: string): Directory | undefined {
   }
 
   if (normalized === "projects") return "project"
+  if (normalized === "experiences") return "experience"
   return undefined
 }
 
