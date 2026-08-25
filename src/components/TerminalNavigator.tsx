@@ -142,7 +142,7 @@ export default function TerminalNavigator({
           borderBottom: "1px solid rgba(65,72,77,0.8)",
           borderLeft: "none",
           borderRadius: "0 10px 10px 0",
-          color: "#C0C7CD",
+          color: "#8FCEF3",
           cursor: "pointer",
           writingMode: "vertical-rl",
           textOrientation: "mixed",
