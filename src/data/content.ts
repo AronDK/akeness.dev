@@ -198,7 +198,7 @@ function parsePrivateDocument(
     type,
     filename,
     title,
-    date: metadata.date || "undated",
+    date: metadata.date || metadata["last reviewed"] || "undated",
     readTime: metadata.readtime,
     tag: metadata.tag,
     stack: metadata.stack

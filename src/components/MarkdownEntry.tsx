@@ -145,6 +145,12 @@ export function MarkdownRenderer({
 }: {
   entry: Pick<Entry, "body" | "sourcePath">
 }) {
+  const markdown = entry.body.replace(
+    /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+    (_match, filename: string, alt?: string) =>
+      `![${alt ?? filename}](assets/${filename})`,
+  )
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -155,7 +161,7 @@ export function MarkdownRenderer({
         pre: MarkdownPre,
       }}
     >
-      {entry.body}
+      {markdown}
     </ReactMarkdown>
   )
 }
