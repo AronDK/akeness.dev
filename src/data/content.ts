@@ -136,11 +136,22 @@ export function resolveMarkdownImage(
   const match = source.match(/^([^?#]*)(.*)$/)
   const imagePath = match?.[1] ?? source
   const suffix = match?.[2] ?? ""
+  let decodedImagePath = imagePath
+
+  try {
+    decodedImagePath = decodeURIComponent(imagePath)
+  } catch {
+    // Leave malformed percent escapes untouched so unresolved URLs still
+    // degrade to the browser's normal handling below.
+  }
+
   const documentDirectory = entry.sourcePath.slice(
     0,
     entry.sourcePath.lastIndexOf("/") + 1,
   )
-  const resolvedPath = normaliseRelativePath(`${documentDirectory}${imagePath}`)
+  const resolvedPath = normaliseRelativePath(
+    `${documentDirectory}${decodedImagePath}`,
+  )
 
   if (!resolvedPath.startsWith("../private/nerdblog/")) return source
 

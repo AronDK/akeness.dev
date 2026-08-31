@@ -148,7 +148,7 @@ export function MarkdownRenderer({
   const markdown = entry.body.replace(
     /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
     (_match, filename: string, alt?: string) =>
-      `![${alt ?? filename}](assets/${filename})`,
+      `![${alt ?? filename}](<assets/${filename}>)`,
   )
 
   return (

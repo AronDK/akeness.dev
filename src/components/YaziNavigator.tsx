@@ -96,8 +96,8 @@ const CloseIcon = () => (
 
 const rootDirs: RootDirEntry[] = [
   { id: "all", label: "All", count: entries.length + 1 },
-  { id: "project", label: "Projects", count: projects.length },
   { id: "blog", label: "Blog", count: blogs.length },
+  { id: "project", label: "Projects", count: projects.length },
   { id: "experience", label: "Experiences", count: experiences.length },
 ]
 
