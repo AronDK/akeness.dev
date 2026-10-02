@@ -209,7 +209,7 @@ function parsePrivateDocument(
     type,
     filename,
     title,
-    date: metadata.date || metadata["last reviewed"] || "undated",
+    date: metadata.date || metadata["last reviewed"] || metadata.created || "undated",
     readTime: metadata.readtime,
     tag: metadata.tag,
     stack: metadata.stack
@@ -259,6 +259,34 @@ const monthIndex: Record<string, number> = {
   dec: 11,
 }
 
+function parseEntryDate(date: string): number {
+  if (!date || date === "undated") return Number.NEGATIVE_INFINITY
+
+  const parsed = Date.parse(date)
+  if (!Number.isNaN(parsed)) {
+    return parsed
+  }
+
+  const match = date.match(/\b([A-Za-z]{3})[A-Za-z]*\s+(\d{4})\b/)
+  if (match) {
+    const month = monthIndex[match[1].toLowerCase()]
+    if (month !== undefined) {
+      return Date.UTC(Number(match[2]), month)
+    }
+  }
+
+  return Number.NEGATIVE_INFINITY
+}
+
+function compareEntriesNewestFirst(left: Entry, right: Entry) {
+  const leftTime = parseEntryDate(left.date)
+  const rightTime = parseEntryDate(right.date)
+  if (rightTime !== leftTime) {
+    return rightTime - leftTime
+  }
+  return left.title.localeCompare(right.title)
+}
+
 function experienceDateRange(date: string) {
   const dates = [...date.matchAll(/\b([A-Za-z]{3})[A-Za-z]*\s+(\d{4})\b/g)].map(
     (match) => Date.UTC(Number(match[2]), monthIndex[match[1].toLowerCase()]),
@@ -278,11 +306,16 @@ function compareExperiencesNewestFirst(left: Entry, right: Entry) {
   return rightRange.start - leftRange.start || rightRange.end - leftRange.end
 }
 
-export const projects = contentEntries.filter(
-  (entry) => entry.type === "project",
-)
-export const blogs = contentEntries.filter((entry) => entry.type === "blog")
+export const projects = contentEntries
+  .filter((entry) => entry.type === "project")
+  .sort(compareEntriesNewestFirst)
+
+export const blogs = contentEntries
+  .filter((entry) => entry.type === "blog")
+  .sort(compareEntriesNewestFirst)
+
 export const experiences = contentEntries
   .filter((entry) => entry.type === "experience")
   .sort(compareExperiencesNewestFirst)
+
 export const entries = [...blogs, ...projects, ...experiences]
